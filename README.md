@@ -61,5 +61,11 @@ los móviles que ya la tengan instalada descarguen la versión nueva.
 
 ## Publicación
 
-El workflow `.github/workflows/deploy.yml` publica la carpeta del repositorio en GitHub
-Pages en cada push a `main`. Para activarlo: *Settings → Pages → Source: GitHub Actions*.
+Se publica directamente desde la rama `main` con GitHub Pages:
+
+*Settings → Pages → Build and deployment → Source: **Deploy from a branch** → Branch:
+`main` / `(root)` → Save*
+
+Queda en <https://carlosgutierrezmartin.github.io/Zurifit/> y se actualiza solo con cada
+push a `main`. El archivo `.nojekyll` desactiva el procesado de Jekyll, que no hace falta
+en un sitio estático como este.
