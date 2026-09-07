@@ -1,7 +1,8 @@
-import { PROGRAM, GUIDE, setsFor, cardioTarget, weeklyCardioGoal } from '../data/program.js';
+import { PROGRAM, GUIDE, setsFor, cardioTarget, weeklyCardioGoal, dayById } from '../data/program.js';
 import { EXERCISES, GROUPS, MATERIAL, CHECKLIST } from '../data/exercises.js';
-import { programWeek } from '../store.js';
+import { programWeek, getDayExtras, addDayExtra, removeDayExtra } from '../store.js';
 import { esc } from '../lib/dom.js';
+import * as addex from './addex.js';
 
 let tab = 'rutina';
 
@@ -29,6 +30,17 @@ function rutina(week) {
               <td>${e.rest}s</td>
             </tr>`;
           }).join('')}
+          ${getDayExtras(day.id).map(e => {
+            const m = EXERCISES[e.id];
+            const u = m.unit === 'time' ? 's' : '';
+            return `<tr class="is-extra">
+              <td><button class="linkbtn" data-ficha="${esc(e.id)}">${esc(m.name)}</button>
+                  <span class="tagmine">tuyo</span></td>
+              <td>${e.sets} × ${e.reps[0]}${e.reps[1] !== e.reps[0] ? `-${e.reps[1]}` : ''}${u}${m.perSide ? '/lado' : ''}</td>
+              <td><button class="linkbtn linkbtn--del" data-del-extra="${esc(e.id)}" data-day="${esc(day.id)}"
+                    aria-label="Quitar ${esc(m.short)} del día ${day.number}">quitar</button></td>
+            </tr>`;
+          }).join('')}
           <tr class="is-cardio">
             <td><button class="linkbtn" data-ficha="cardio-cinta">Cardio · ${esc(day.cardio.label)}</button></td>
             <td>${t[0] === t[1] ? t[0] : `${t[0]}-${t[1]}`} min</td>
@@ -36,7 +48,10 @@ function rutina(week) {
           </tr>
         </tbody>
       </table>
-      <a class="btn btn--soft" href="#/entreno/${day.id}">Entrenar este día</a>
+      <div class="btn-row">
+        <a class="btn btn--soft" href="#/entreno/${day.id}">Entrenar este día</a>
+        <button class="btn btn--soft" type="button" data-add-day="${day.id}" data-n="${day.number}">➕ Añadir ejercicio</button>
+      </div>
     </section>`;
   }).join('');
 }
@@ -44,15 +59,24 @@ function rutina(week) {
 function biblioteca() {
   return Object.entries(GROUPS).map(([g, label]) => {
     const items = Object.entries(EXERCISES).filter(([, m]) => m.group === g);
+    const mine = g === 'propios';
+    if (!items.length && !mine) return '';
     return `
     <section class="lib">
       <h3 class="section-title">${esc(label)}</h3>
+      ${mine && !items.length
+        ? '<p class="card__meta">Aquí aparecerán los ejercicios que crees tú. Puedes añadirlos desde cualquier día de la rutina o durante el entrenamiento.</p>'
+        : ''}
       <div class="lib__grid">
         ${items.map(([id, m]) => `
-          <button class="libcard" type="button" data-ficha="${esc(id)}">
+          <button class="libcard${mine ? ' libcard--mine' : ''}" type="button" data-ficha="${esc(id)}">
             <b>${esc(m.short)}</b>
             <small>${esc(m.tag)}</small>
           </button>`).join('')}
+        ${mine ? `<button class="libcard libcard--new" type="button" data-new-ex>
+            <b>➕ Crear ejercicio</b>
+            <small>con el nombre que quieras</small>
+          </button>` : ''}
       </div>
     </section>`;
   }).join('');
@@ -129,6 +153,39 @@ export default {
     root.addEventListener('click', ev => {
       const t = ev.target.closest('[data-tab]');
       if (t) { tab = t.dataset.tab; ctx.rerender(); return; }
+      const del = ev.target.closest('[data-del-extra]');
+      if (del) {
+        const m = EXERCISES[del.dataset.delExtra];
+        if (confirm(`¿Quitar «${m.short}» del Día ${dayById(del.dataset.day)?.number ?? ''}?`)) {
+          removeDayExtra(del.dataset.day, del.dataset.delExtra);
+          ctx.rerender();
+        }
+        return;
+      }
+      if (ev.target.closest('[data-new-ex]')) {
+        addex.open({
+          mode: 'library',
+          taken: [],
+          onAdd: (entry, dayTarget) => {
+            if (dayTarget) addDayExtra(dayTarget, entry);
+            ctx.rerender();
+          }
+        });
+        return;
+      }
+      const add = ev.target.closest('[data-add-day]');
+      if (add) {
+        const dayId = add.dataset.addDay;
+        const d = dayById(dayId);
+        addex.open({
+          mode: 'day',
+          dayId,
+          dayNumber: add.dataset.n,
+          taken: [...d.exercises.map(e => e.id), ...getDayExtras(dayId).map(e => e.id)],
+          onAdd: (entry, dayTarget) => { if (dayTarget) addDayExtra(dayTarget, entry); ctx.rerender(); }
+        });
+        return;
+      }
       const f = ev.target.closest('[data-ficha]');
       if (f) ctx.openSheet(f.dataset.ficha);
     });

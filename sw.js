@@ -1,7 +1,7 @@
 // Service worker: guarda la app en el móvil para que funcione sin conexión.
 // Sube CACHE cada vez que cambie algún archivo para forzar la actualización.
 
-const CACHE = 'zurifit-v1';
+const CACHE = 'zurifit-v2';
 
 const ASSETS = [
   './',
@@ -28,6 +28,7 @@ const ASSETS = [
   './js/views/achievements.js',
   './js/views/settings.js',
   './js/views/sheet.js',
+  './js/views/addex.js',
   './assets/favicon.svg',
   './assets/icon-192.png',
   './assets/icon-512.png',

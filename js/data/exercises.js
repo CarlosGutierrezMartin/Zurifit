@@ -281,7 +281,8 @@ export const GROUPS = {
   piernas: 'Glúteos y piernas',
   espalda: 'Espalda y tren superior',
   core: 'Core y abdomen',
-  cardio: 'Cardio'
+  cardio: 'Cardio',
+  propios: 'Mis ejercicios'
 };
 
 export const MATERIAL = [

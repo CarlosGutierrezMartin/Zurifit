@@ -1,4 +1,4 @@
-import { hasProfile, getActive } from './store.js';
+import { hasProfile, getActive, installCustomExercises } from './store.js';
 import { $, mount } from './lib/dom.js';
 import * as sheet from './views/sheet.js';
 
@@ -95,6 +95,7 @@ function render() {
 
 window.addEventListener('hashchange', render);
 window.addEventListener('DOMContentLoaded', () => {
+  installCustomExercises();
   if (!location.hash) location.hash = '#/inicio';
   render();
 });

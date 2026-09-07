@@ -1,6 +1,8 @@
 // Estado y persistencia. Todo vive en el localStorage del móvil de la usuaria:
 // no hay servidor, no se envía nada a ningún sitio.
 
+import { EXERCISES } from './data/exercises.js';
+
 const KEY = 'zurifit.state.v1';
 
 const DEFAULT_STATE = {
@@ -16,7 +18,11 @@ const DEFAULT_STATE = {
   sessions: [],           // sesiones terminadas
   active: null,           // sesión en curso (se guarda por si cierra la app)
   achievements: {},       // id -> fecha ISO de desbloqueo
-  meta: { noteDate: null, noteSeed: 0 }
+  meta: { noteDate: null, noteSeed: 0 },
+  custom: {
+    exercises: {},        // ejercicios creados por ella: id -> ficha
+    dayExtras: {}         // dia -> [{ id, sets, reps:[min,max], rest }]
+  }
 };
 
 let state = load();
@@ -28,7 +34,8 @@ function load() {
     const parsed = JSON.parse(raw);
     return migrate({ ...structuredClone(DEFAULT_STATE), ...parsed,
       settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
-      meta: { ...DEFAULT_STATE.meta, ...(parsed.meta || {}) } });
+      meta: { ...DEFAULT_STATE.meta, ...(parsed.meta || {}) },
+      custom: { ...DEFAULT_STATE.custom, ...(parsed.custom || {}) } });
   } catch (err) {
     console.warn('No se ha podido leer el progreso guardado', err);
     return structuredClone(DEFAULT_STATE);
@@ -38,7 +45,16 @@ function load() {
 function migrate(s) {
   if (!Array.isArray(s.sessions)) s.sessions = [];
   if (!s.achievements || typeof s.achievements !== 'object') s.achievements = {};
+  if (!s.custom || typeof s.custom !== 'object') s.custom = { exercises: {}, dayExtras: {} };
+  if (!s.custom.exercises) s.custom.exercises = {};
+  if (!s.custom.dayExtras) s.custom.dayExtras = {};
   return s;
+}
+
+// Los ejercicios que ella crea se mezclan con los del PDF, así que el resto
+// de la app (récords, gráficas, fichas) los trata exactamente igual.
+export function installCustomExercises() {
+  Object.assign(EXERCISES, getState().custom.exercises);
 }
 
 let saveTimer = null;
@@ -168,6 +184,76 @@ export function unlockAchievements(ids) {
   return fresh;
 }
 
+// ------------------------------------------------ ejercicios personales ---
+
+export function customId(name) {
+  const base = 'mio-' + name.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32);
+  let id = base || 'mio-ejercicio';
+  let n = 2;
+  while (EXERCISES[id]) id = `${base}-${n++}`;
+  return id;
+}
+
+export function addCustomExercise(def) {
+  const id = customId(def.name);
+  const ficha = {
+    name: def.name,
+    short: def.name.length > 22 ? def.name.slice(0, 21) + '…' : def.name,
+    tag: def.tag || 'MI EJERCICIO',
+    group: 'propios',
+    unit: def.unit || 'reps',
+    perSide: !!def.perSide,
+    noWeight: !!def.noWeight,
+    step: def.step || 2.5,
+    weightNote: def.noWeight ? '' : 'peso que uses en este ejercicio',
+    purpose: def.purpose || 'Ejercicio añadido por ti a la rutina.',
+    how: def.how || 'Hazlo con la técnica que te hayan enseñado, con control y sin prisa.',
+    feel: def.feel || 'Esfuerzo en el músculo que quieres trabajar, sin dolor articular.',
+    mistake: def.mistake || 'Usar demasiado peso y perder la técnica.',
+    alt: def.alt || 'Cualquier variante parecida que te resulte cómoda.',
+    custom: true
+  };
+  state.custom.exercises[id] = ficha;
+  EXERCISES[id] = ficha;
+  save(true);
+  return id;
+}
+
+export function updateCustomExercise(id, patch) {
+  if (!state.custom.exercises[id]) return null;
+  Object.assign(state.custom.exercises[id], patch);
+  Object.assign(EXERCISES[id], patch);
+  save(true);
+  return EXERCISES[id];
+}
+
+export function isCustom(id) {
+  return !!state.custom.exercises[id];
+}
+
+// Ejercicios añadidos de forma permanente a un día de la rutina.
+export function getDayExtras(dayId) {
+  return state.custom.dayExtras[dayId] || [];
+}
+
+export function addDayExtra(dayId, entry) {
+  if (!state.custom.dayExtras[dayId]) state.custom.dayExtras[dayId] = [];
+  const list = state.custom.dayExtras[dayId];
+  if (list.some(e => e.id === entry.id)) return false;
+  list.push(entry);
+  save(true);
+  return true;
+}
+
+export function removeDayExtra(dayId, exerciseId) {
+  const list = state.custom.dayExtras[dayId];
+  if (!list) return;
+  state.custom.dayExtras[dayId] = list.filter(e => e.id !== exerciseId);
+  save(true);
+}
+
 // ------------------------------------------------------- copia de datos ---
 
 export function exportJSON() {
@@ -181,8 +267,10 @@ export function importJSON(text) {
   }
   state = migrate({ ...structuredClone(DEFAULT_STATE), ...parsed,
     settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
-    meta: { ...DEFAULT_STATE.meta, ...(parsed.meta || {}) } });
+    meta: { ...DEFAULT_STATE.meta, ...(parsed.meta || {}) },
+    custom: { ...DEFAULT_STATE.custom, ...(parsed.custom || {}) } });
   save(true);
+  installCustomExercises();
   return state;
 }
 

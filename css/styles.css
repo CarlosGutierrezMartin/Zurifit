@@ -634,6 +634,30 @@ body.is-workout .rest { bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); }
 .install button { border: 0; border-radius: 999px; padding: 8px 12px; font-family: inherit; font-weight: 700; cursor: pointer; background: #fff; color: var(--ink); font-size: .8rem; }
 .install [data-dismiss] { background: transparent; color: rgba(255,255,255,.6); padding: 6px; }
 
+/* ------------------------------------------------ añadir ejercicio --- */
+
+.addex__row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.addex__row .field { margin-bottom: 12px; }
+.addex__row .field__label { font-size: .72rem; }
+.addex__row .field__input { padding: 11px 6px; text-align: center; font-weight: 700; -moz-appearance: textfield; }
+.addex__row .field__input::-webkit-outer-spin-button,
+.addex__row .field__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.addex__more { margin: 4px 0 14px; }
+.addex__more summary { font-size: .84rem; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.addex__dest { background: var(--lav-soft); border-radius: var(--r-md); padding: 10px 12px; font-size: .84rem; color: var(--ink-2); margin-bottom: 4px; }
+
+.check { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; font-size: .87rem; color: var(--ink-2); }
+.check input { width: 20px; height: 20px; flex: none; accent-color: var(--lav); margin: 0; }
+.check--main { background: var(--surface-2); border-radius: var(--r-md); padding: 12px; margin: 6px 0 14px; color: var(--ink); }
+
+.btn--add { margin: 4px 0 14px; border: 1.5px dashed rgba(124,107,224,.45); background: transparent; }
+
+.tagmine { display: inline-block; background: var(--lav-soft); color: var(--lav); border-radius: 999px; padding: 1px 7px; font-size: .64rem; font-weight: 800; vertical-align: middle; margin-left: 4px; }
+.table tr.is-extra td { background: rgba(124,107,224,.045); }
+.linkbtn--del { color: var(--ink-3); font-size: .78rem; }
+.libcard--mine { background: linear-gradient(135deg, #F4F1FE, #FFFFFF); }
+.libcard--new { border: 1.5px dashed rgba(124,107,224,.45); background: transparent; box-shadow: none; color: var(--lav); }
+
 /* ---------------------------------------------------------------- sheet --- */
 
 .sheet { position: fixed; inset: 0; z-index: 70; pointer-events: none; }

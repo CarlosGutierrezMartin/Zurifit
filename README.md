@@ -25,6 +25,7 @@ los minutos de cardio por semana y las fichas de cada ejercicio) sale del PDF
 | **Récords** | Detección automática de marcas personales (peso, repeticiones, segundos) con celebración: confeti, vibración y aviso. |
 | **Progreso** | Gráficas de peso movido, cardio y entrenos por semana; evolución por ejercicio (peso máximo, volumen y fuerza estimada con la fórmula de Epley); tabla de récords e historial completo. |
 | **Rutina** | Los 4 días tal cual vienen en el PDF, la biblioteca con las 22 fichas de técnica (21 ejercicios + cardio) y la guía (cómo progresar, cardio, checklist, material). |
+| **Ejercicios propios** | Crear un ejercicio con el nombre que quiera (series, rango de repeticiones y descanso configurables) y añadirlo a un día de forma fija o solo a la sesión de hoy. También se puede añadir uno de los ejercicios que ya existen. Los propios se registran igual que el resto (kg, repeticiones y series) y entran en récords, gráficas e historial. |
 | **Logros** | 29 logros en cuatro categorías, niveles y puntos. |
 | **Perfil** | Nombre, fecha de inicio, semana del programa, sonido/vibración/cronómetro automático, copia de seguridad. |
 

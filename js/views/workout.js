@@ -3,7 +3,9 @@ import { EXERCISES, CHECKLIST } from '../data/exercises.js';
 import { note } from '../data/messages.js';
 import { evaluate } from '../data/achievements.js';
 import { getActive, startSession, touchActive, discardActive, finishSession,
-         programWeek, todayISO, uid, firstName, getState, unlockAchievements } from '../store.js';
+         programWeek, todayISO, uid, firstName, getState, unlockAchievements,
+         getDayExtras, addDayExtra, removeDayExtra } from '../store.js';
+import * as addex from './addex.js';
 import { esc } from '../lib/dom.js';
 import * as timer from '../lib/timer.js';
 import { celebratePR, toast, haptic, beep } from '../lib/fx.js';
@@ -26,28 +28,33 @@ function buildSession(day, week) {
     startedAt: new Date().toISOString(),
     finishedAt: null,
     durationSec: 0,
-    exercises: day.exercises.map(e => {
-      const sug = S.suggestion(e.id, e, week);
-      return {
-        id: e.id,
-        baseId: e.id,
-        altOf: e.altOf || null,
-        target: e.reps,
-        rest: e.rest,
-        optional: !!e.optional,
-        skipped: false,
-        note: '',
-        sets: Array.from({ length: setsFor(e, week) }, () => ({
-          w: sug.weight ?? '', r: sug.reps ?? '', done: false, rir: null
-        }))
-      };
-    }),
+    exercises: [...day.exercises, ...getDayExtras(day.id).map(e => ({ ...e, extra: true }))]
+      .map(e => sessionExercise(e, week)),
     cardio: {
       minutes: cardioTarget(day, week)[0],
       label: day.cardio.label,
       done: false
     },
     prs: []
+  };
+}
+
+// Una entrada de sesión a partir de una línea del programa (o de un extra).
+function sessionExercise(e, week) {
+  const sug = S.suggestion(e.id, e, week);
+  return {
+    id: e.id,
+    baseId: e.id,
+    altOf: e.altOf || null,
+    target: e.reps,
+    rest: e.rest,
+    optional: !!e.optional,
+    extra: !!e.extra,
+    skipped: false,
+    note: '',
+    sets: Array.from({ length: setsFor(e, week) }, () => ({
+      w: sug.weight ?? '', r: sug.reps ?? '', done: false, rir: null
+    }))
   };
 }
 
@@ -108,9 +115,7 @@ function setRow(ex, set, i, showRir) {
 
 function exerciseCard(ex, idx, week) {
   const meta = EXERCISES[ex.id];
-  const day = dayById(getActive().dayId);
-  const progEx = day.exercises[idx];
-  const sug = S.suggestion(ex.id, { ...progEx, reps: ex.target, sets: ex.sets.length }, week);
+  const sug = S.suggestion(ex.id, { reps: ex.target, sets: ex.sets.length }, week);
   const last = S.lastPerformance(ex.id);
   const doneCount = ex.sets.filter(s => s.done).length;
   const unit = meta.unit === 'time' ? 's' : 'reps';
@@ -146,6 +151,7 @@ function exerciseCard(ex, idx, week) {
       ${ex.baseId !== ex.id ? `<button class="chipbtn" type="button" data-act="swap">↔ ${esc(EXERCISES[ex.baseId].short)}</button>` : ''}
       <button class="chipbtn" type="button" data-act="note">📝 nota</button>
       ${ex.optional ? '<button class="chipbtn" type="button" data-act="skip">saltar</button>' : ''}
+      ${ex.extra ? '<button class="chipbtn" type="button" data-act="remove-ex">quitar</button>' : ''}
       <span class="exercise__rest">descanso ${ex.rest}s</span>
     </div>
 
@@ -221,11 +227,11 @@ export default {
       </header>
 
       <ol class="plan">
-        ${day.exercises.map(e => {
+        ${[...day.exercises, ...getDayExtras(day.id).map(e => ({ ...e, extra: true }))].map(e => {
           const m = EXERCISES[e.id];
           const u = m.unit === 'time' ? 's' : 'reps';
           return `<li class="plan__item">
-            <span class="plan__name">${esc(m.name)}${e.optional ? ' <i>(opcional)</i>' : ''}</span>
+            <span class="plan__name">${esc(m.name)}${e.optional ? ' <i>(opcional)</i>' : ''}${e.extra ? ' <i>(tuyo)</i>' : ''}</span>
             <span class="plan__scheme">${setsFor(e, week)} × ${e.reps[0]}${e.reps[1] !== e.reps[0] ? `-${e.reps[1]}` : ''} ${u}${m.perSide ? '/lado' : ''}</span>
           </li>`;
         }).join('')}
@@ -241,6 +247,7 @@ export default {
       </details>
 
       <button class="btn btn--primary btn--xl" type="button" data-act="start">Empezar entrenamiento</button>
+      <button class="btn btn--soft" type="button" data-act="add-ex-day">➕ Añadir un ejercicio a este día</button>
       <p class="hint">Calienta 5-7 minutos caminando o en bici y haz una primera serie muy ligera.</p>
     </div>`;
   },
@@ -264,6 +271,7 @@ export default {
         <div id="ex-list">
           ${session.exercises.map((ex, i) => exerciseCard(ex, i, week)).join('')}
         </div>
+        <button class="btn btn--soft btn--add" type="button" data-act="add-ex">➕ Añadir ejercicio</button>
         ${cardioCard(session, week)}
         <button class="btn btn--primary btn--xl" type="button" data-act="finish">Terminar entrenamiento</button>
         <button class="btn btn--ghost" type="button" data-act="cancel">Descartar esta sesión</button>
@@ -288,6 +296,17 @@ export default {
       ctx.rerender();
     });
 
+    // Añadir un ejercicio al día desde la pantalla previa.
+    root.querySelector('[data-act="add-ex-day"]')?.addEventListener('click', () => {
+      addex.open({
+        mode: 'day',
+        dayId: day.id,
+        dayNumber: day.number,
+        taken: [...day.exercises.map(e => e.id), ...getDayExtras(day.id).map(e => e.id)],
+        onAdd: (entry, dayTarget) => { if (dayTarget) addDayExtra(dayTarget, entry); ctx.rerender(); }
+      });
+    });
+
     const session = getActive();
     if (!session || session.dayId !== day.id) return;
     keepAwake();
@@ -310,6 +329,12 @@ export default {
       if (bar) bar.style.width = `${total ? done / total * 100 : 0}%`;
       const meta = root.querySelector('.wtop__meta');
       if (meta) meta.innerHTML = `<span id="w-clock">${clock ? clock.textContent : '0:00'}</span> · ${S.fmtBig(S.sessionVolume(s))} kg`;
+    };
+
+    const rerenderList = () => {
+      const list = root.querySelector('#ex-list');
+      if (list) list.innerHTML = getActive().exercises.map((ex, i) => exerciseCard(ex, i, week)).join('');
+      refreshHeader();
     };
 
     const rerenderExercise = idx => {
@@ -381,6 +406,33 @@ export default {
         const cur = getActive().exercises[idx].note || '';
         const val = prompt('Nota para este ejercicio (altura del asiento, sensaciones, número de máquina...)', cur);
         if (val !== null) { touchActive(s => { s.exercises[idx].note = val.trim(); }); rerenderExercise(idx); }
+        return;
+      }
+      if (act === 'remove-ex') {
+        const ex = getActive().exercises[idx];
+        const stillInDay = getDayExtras(day.id).some(e => e.id === ex.id);
+        if (stillInDay && confirm(`¿Quitar «${EXERCISES[ex.id].short}» también de este día para las próximas veces?`)) {
+          removeDayExtra(day.id, ex.id);
+        }
+        touchActive(s => { s.exercises.splice(idx, 1); });
+        rerenderList();
+        haptic();
+        return;
+      }
+      if (act === 'add-ex') {
+        addex.open({
+          mode: 'session',
+          dayId: day.id,
+          dayNumber: day.number,
+          taken: getActive().exercises.map(e => e.id),
+          onAdd: (entry, dayTarget) => {
+            if (dayTarget) addDayExtra(dayTarget, entry);
+            touchActive(s => { s.exercises.push(sessionExercise({ ...entry, extra: true }, week)); });
+            rerenderList();
+            const last = root.querySelector('#ex-list .exercise:last-child');
+            last?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
         return;
       }
       if (act === 'info') { ctx.openSheet(getActive().exercises[idx].id); return; }
